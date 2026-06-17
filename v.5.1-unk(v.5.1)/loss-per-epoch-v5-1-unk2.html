@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VLM OCR v5.1-unk2 Loss per Epoch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./loss-per-epoch-v5-1-unk2.css">
+</head>
+<body>
+  <main class="page-shell">
+    <header class="report-header">
+      <div>
+        <p class="eyebrow">Training report</p>
+        <h1>VLM OCR v5.1-unk2 Loss per Epoch</h1>
+        <p class="subtitle">Train and validation loss extracted from the latest v5.1-unk2 training log.</p>
+      </div>
+      <div class="run-meta" aria-label="Run metadata">
+        <span>Epochs: 20</span>
+        <span>Train rows: 84</span>
+        <span>Valid rows: 9</span>
+      </div>
+    </header>
+
+    <section class="metrics-grid" aria-label="Training summary">
+      <article class="metric">
+        <span class="metric-label">Final train loss</span>
+        <strong>1.7006</strong>
+        <span class="metric-delta">-83.81% from epoch 1</span>
+      </article>
+      <article class="metric">
+        <span class="metric-label">Final valid loss</span>
+        <strong>1.1293</strong>
+        <span class="metric-delta">-83.78% from epoch 1</span>
+      </article>
+      <article class="metric">
+        <span class="metric-label">Best valid epoch</span>
+        <strong>20</strong>
+        <span class="metric-delta">valid_loss 1.1293</span>
+      </article>
+      <article class="metric">
+        <span class="metric-label">Final gap</span>
+        <strong>-0.5713</strong>
+        <span class="metric-delta">valid minus train</span>
+      </article>
+    </section>
+
+    <section class="chart-section" aria-label="Loss chart">
+      <div class="chart-heading">
+        <div>
+          <h2>Loss Trend</h2>
+          <p>Lower values indicate better model fit for each split.</p>
+        </div>
+        <div class="legend-note">
+          <span class="legend-dot train-dot"></span>Train loss
+          <span class="legend-dot valid-dot"></span>Valid loss
+        </div>
+      </div>
+      <div class="chart-frame">
+        <canvas id="lossChart" aria-label="Line chart of train and validation loss by epoch"></canvas>
+        <p class="chart-fallback" id="chartFallback">Chart.js did not load. Check the network connection or CDN access.</p>
+      </div>
+    </section>
+
+    <section class="table-section" aria-label="Loss data table">
+      <h2>Source Values</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Epoch</th>
+              <th scope="col">Train loss</th>
+              <th scope="col">Valid loss</th>
+              <th scope="col">Train rows</th>
+              <th scope="col">Valid rows</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>10.5032</td><td>6.9636</td><td>84</td><td>9</td></tr>
+            <tr><td>2</td><td>6.7767</td><td>5.1494</td><td>84</td><td>9</td></tr>
+            <tr><td>3</td><td>5.3665</td><td>4.4830</td><td>84</td><td>9</td></tr>
+            <tr><td>4</td><td>4.8012</td><td>4.1845</td><td>84</td><td>9</td></tr>
+            <tr><td>5</td><td>4.4335</td><td>3.9688</td><td>84</td><td>9</td></tr>
+            <tr><td>6</td><td>4.3717</td><td>3.8814</td><td>84</td><td>9</td></tr>
+            <tr><td>7</td><td>4.0129</td><td>3.7796</td><td>84</td><td>9</td></tr>
+            <tr><td>8</td><td>4.0295</td><td>3.6690</td><td>84</td><td>9</td></tr>
+            <tr><td>9</td><td>3.8753</td><td>3.6023</td><td>84</td><td>9</td></tr>
+            <tr><td>10</td><td>3.8119</td><td>3.5036</td><td>84</td><td>9</td></tr>
+            <tr><td>11</td><td>3.6720</td><td>3.4190</td><td>84</td><td>9</td></tr>
+            <tr><td>12</td><td>3.5932</td><td>3.3272</td><td>84</td><td>9</td></tr>
+            <tr><td>13</td><td>3.3878</td><td>3.2597</td><td>84</td><td>9</td></tr>
+            <tr><td>14</td><td>3.2961</td><td>3.0737</td><td>84</td><td>9</td></tr>
+            <tr><td>15</td><td>3.1128</td><td>2.9010</td><td>84</td><td>9</td></tr>
+            <tr><td>16</td><td>2.9446</td><td>2.7011</td><td>84</td><td>9</td></tr>
+            <tr><td>17</td><td>2.7782</td><td>2.4217</td><td>84</td><td>9</td></tr>
+            <tr><td>18</td><td>2.5058</td><td>2.0196</td><td>84</td><td>9</td></tr>
+            <tr><td>19</td><td>2.2130</td><td>1.5090</td><td>84</td><td>9</td></tr>
+            <tr><td>20</td><td>1.7006</td><td>1.1293</td><td>84</td><td>9</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="./loss-per-epoch-v5-1-unk2.js"></script>
+</body>
+</html>
