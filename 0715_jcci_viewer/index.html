@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JCCI 52RB Result Graph Viewer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --ink: #18212b;
+      --muted: #617080;
+      --border: #d8e0e8;
+      --grid: #c4ccd4;
+      --primary: #175f8c;
+      --primary-hover: #104c71;
+      --secondary: #e8edf2;
+      --danger: #b42318;
+    }
+
+    * {
+      box-sizing: border-box;
+      letter-spacing: 0;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    main {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 20px auto;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.4fr) auto;
+      gap: 12px;
+      align-items: end;
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .drop-zone {
+      min-height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border: 1px dashed #9eb0c1;
+      border-radius: 6px;
+      background: #fafcfe;
+      color: var(--muted);
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .drop-zone:hover,
+    .drop-zone:focus-visible,
+    .drop-zone.dragging {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: #f2f8fc;
+      outline: none;
+    }
+
+    .source-picker {
+      display: grid;
+      gap: 8px;
+    }
+
+    input[type="file"] {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 92px 92px 82px;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    input:focus-visible {
+      border-color: var(--primary);
+      outline: 2px solid rgba(23, 95, 140, 0.14);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    button {
+      min-height: 38px;
+      padding: 9px 13px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #ffffff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    button.secondary {
+      background: var(--secondary);
+      color: var(--ink);
+    }
+
+    button.secondary:hover {
+      background: #dce4eb;
+    }
+
+    button:disabled,
+    button:disabled:hover {
+      background: #b9c3cd;
+      color: #f7f8f9;
+      cursor: not-allowed;
+    }
+
+    .status-row {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 9px 2px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status.error {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .meta {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .chart-panel {
+      padding: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      min-height: 440px;
+      overflow: auto;
+      background: #ffffff;
+    }
+
+    .tooltip {
+      position: fixed;
+      z-index: 20;
+      display: none;
+      max-width: min(360px, calc(100vw - 16px));
+      padding: 8px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 6px;
+      background: rgba(20, 27, 34, 0.94);
+      color: #ffffff;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre-line;
+      pointer-events: none;
+      box-shadow: 0 4px 14px rgba(20, 27, 34, 0.18);
+    }
+
+    .tooltip.visible {
+      display: block;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-width: 760px;
+      background: #ffffff;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        width: min(100vw - 20px, 1480px);
+        margin: 10px auto;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .field-grid {
+        grid-template-columns: minmax(220px, 1fr) repeat(3, 86px);
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .field-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .field-grid label:first-child {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>JCCI Result Graph Viewer</h1>
+
+    <section class="toolbar" aria-label="결과 그래프 도구">
+      <div class="source-picker">
+        <label>
+          내장 NPZ 결과
+          <select id="bundledSelect">
+            <option value="5090_52rb_dft" selected>5090 / 52RB / DFT</option>
+            <option value="5090_52rb_observ">5090 / 52RB / Observation</option>
+            <option value="1080_52rb_dft">1080 / 52RB / DFT</option>
+            <option value="1080_52rb_observ">1080 / 52RB / Observation</option>
+          </select>
+        </label>
+        <div class="drop-zone" id="dropZone" role="button" tabindex="0">
+          다른 MAT 또는 NPZ 결과 파일 선택
+        </div>
+      </div>
+
+      <div class="field-grid">
+        <label>
+          SNR [dB]
+          <input id="snrInput" type="text" value="-20, -18, -16, -14, -12, -10">
+        </label>
+        <label>
+          PNG 너비
+          <input id="widthInput" type="number" min="1000" max="5000" step="100" value="2600">
+        </label>
+        <label>
+          PNG 높이
+          <input id="heightInput" type="number" min="500" max="3000" step="100" value="1500">
+        </label>
+        <label>
+          글꼴
+          <input id="fontInput" type="number" min="16" max="48" step="1" value="28">
+        </label>
+      </div>
+
+      <div class="actions">
+        <input id="fileInput" type="file" accept=".mat,.npz">
+        <button id="clearButton" class="secondary" type="button" disabled>초기화</button>
+        <button id="saveButton" type="button" disabled>PNG 저장</button>
+      </div>
+    </section>
+
+    <div class="status-row">
+      <span class="status" id="status">결과 파일 미선택</span>
+      <span class="meta" id="meta"></span>
+    </div>
+
+    <section class="chart-panel" aria-label="NMSE 및 BER 그래프">
+      <div class="canvas-wrap">
+        <canvas id="chart" width="2600" height="1500"></canvas>
+        <div class="tooltip" id="tooltip" role="status"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const ui = {
+      bundledSelect: document.getElementById('bundledSelect'),
+      fileInput: document.getElementById('fileInput'),
+      dropZone: document.getElementById('dropZone'),
+      snrInput: document.getElementById('snrInput'),
+      widthInput: document.getElementById('widthInput'),
+      heightInput: document.getElementById('heightInput'),
+      fontInput: document.getElementById('fontInput'),
+      clearButton: document.getElementById('clearButton'),
+      saveButton: document.getElementById('saveButton'),
+      status: document.getElementById('status'),
+      meta: document.getElementById('meta'),
+      canvas: document.getElementById('chart'),
+      tooltip: document.getElementById('tooltip')
+    };
+
+    const ctx = ui.canvas.getContext('2d');
+    const state = {
+      fileName: '',
+      arrays: null,
+      graph: null,
+      hitPoints: []
+    };
+
+    const bundledResults = {"5090_52rb_dft":{"label":"5090 / 52RB / DFT","fileName":"5090_52rb_dft","arrays":{"EbN0_dB":[0,2,4,6,8,10],"r_list":[0.8,0.5,0.3],"BER_base_perfect":[0.140823317308,0.0976045673077,0.0586510416667,0.0277868589744,0.00920272435897,0.00170953525641],"BER_map_tra_0p8":[0.164892227564,0.115261217949,0.0713036858974,0.035797275641,0.0128741987179,0.00276762820513],"BER_map_tra_0p5":[0.193636217949,0.141076121795,0.0943978365385,0.0542367788462,0.024062900641,0.00723717948718],"BER_map_tra_0p3":[0.238985176282,0.181374599359,0.130805689103,0.0855637019231,0.0473673878205,0.0199022435897],"BER_map_plain_0p8":[0.172026442308,0.122145032051,0.0776690705128,0.0407768429487,0.0158072916667,0.00382171474359],"BER_map_plain_0p5":[0.217092147436,0.163367387821,0.115283653846,0.0722415865385,0.0372528044872,0.0141258012821],"BER_map_plain_0p3":[0.277921875,0.219953125,0.166175480769,0.11801963141,0.075015625,0.0395677083333],"NMSE_map_tra_0p8":[0.23107280618,0.180809685117,0.148797857742,0.128540674432,0.115735377089,0.107664122069],"NMSE_map_tra_0p5":[0.419203475365,0.37625680281,0.348886740345,0.331728176183,0.321020865368,0.314386656247],"NMSE_map_tra_0p3":[0.619937381719,0.583598196451,0.559457779541,0.544031877985,0.534388277979,0.528442064057],"NMSE_map_plain_0p8":[0.282434275968,0.237340512225,0.208878914338,0.190914167551,0.179574181987,0.172415320032],"NMSE_map_plain_0p5":[0.532123256516,0.497899851476,0.476298317345,0.462669982647,0.454077717577,0.448662976059],"NMSE_map_plain_0p3":[0.741631818111,0.709424425553,0.688981599339,0.67604370724,0.66786598465,0.662696369919]}},"5090_52rb_observ":{"label":"5090 / 52RB / Observation","fileName":"5090_52rb_observ","arrays":{"EbN0_dB":[0,2,4,6,8,10],"r_list":[0.8,0.5,0.3],"BER_base_perfect":[0.140823317308,0.0976045673077,0.0586510416667,0.0277868589744,0.00920272435897,0.00170953525641],"BER_map_tra_0p8":[0.164703125,0.115780448718,0.0722083333333,0.0366947115385,0.0134647435897,0.00297836538462],"BER_map_tra_0p5":[0.189360977564,0.139191907051,0.0938862179487,0.0544391025641,0.0244134615385,0.00747756410256],"BER_map_tra_0p3":[0.23259375,0.179786858974,0.131973958333,0.0882708333333,0.0502892628205,0.0220452724359],"BER_map_plain_0p8":[0.172171474359,0.12255088141,0.0781442307692,0.0412255608974,0.0160292467949,0.00389543269231],"BER_map_plain_0p5":[0.218348958333,0.16543349359,0.117854166667,0.0749346955128,0.0392768429487,0.0151145833333],"BER_map_plain_0p3":[0.273448717949,0.218655448718,0.167304887821,0.120558894231,0.0779951923077,0.0421858974359],"NMSE_map_tra_0p8":[0.227694734862,0.184911790151,0.157970821421,0.140995267457,0.130294493431,0.12354649365],"NMSE_map_tra_0p5":[0.38825004789,0.360729675608,0.343482396074,0.332653343996,0.325847127201,0.32156586173],"NMSE_map_tra_0p3":[0.589247140709,0.572974912664,0.562752841988,0.556321937196,0.552271307583,0.549717607662],"NMSE_map_plain_0p8":[0.284021250349,0.241722801701,0.215034654237,0.198195841589,0.187571464613,0.180868072295],"NMSE_map_plain_0p5":[0.536998936907,0.510445445652,0.493690293944,0.483117891452,0.476446653329,0.472236912016],"NMSE_map_plain_0p3":[0.719629914402,0.703848805507,0.693892668779,0.687611598449,0.683649133652,0.681149514058]}},"1080_52rb_dft":{"label":"1080 / 52RB / DFT","fileName":"1080_52rb_dft","arrays":{"EbN0_dB":[0,2,4,6,8,10],"r_list":[0.8,0.5,0.3],"BER_base_perfect":[0.140823317308,0.0976045673077,0.0586510416667,0.0277868589744,0.00920272435897,0.00170953525641],"BER_map_tra_0p8":[0.169665064103,0.120041666667,0.0757952724359,0.0393577724359,0.0148958333333,0.00347435897436],"BER_map_tra_0p5":[0.210249198718,0.157122195513,0.109725560897,0.0675060096154,0.0334835737179,0.0119126602564],"BER_map_tra_0p3":[0.264453525641,0.208562099359,0.157334935897,0.111102964744,0.0693020833333,0.0353100961538],"BER_map_plain_0p8":[0.172974759615,0.123088541667,0.0785248397436,0.0415084134615,0.0162135416667,0.00395953525641],"BER_map_plain_0p5":[0.219697516026,0.166100160256,0.118070112179,0.0748914262821,0.0392924679487,0.0151670673077],"BER_map_plain_0p3":[0.276909054487,0.220544070513,0.167960737179,0.120432291667,0.0775068108974,0.0416790865385],"NMSE_map_tra_0p8":[0.265408935323,0.220692814952,0.192468814395,0.174643980086,0.163383699921,0.156269477735],"NMSE_map_tra_0p5":[0.498820203998,0.466830398357,0.446606836392,0.433860626873,0.425816689725,0.42073908879],"NMSE_map_tra_0p3":[0.693595448596,0.673966971237,0.66138637468,0.653349552173,0.648226474468,0.6449705093],"NMSE_map_plain_0p8":[0.289111893481,0.245288695788,0.217633785458,0.200181819239,0.189169592307,0.182220328175],"NMSE_map_plain_0p5":[0.542536470311,0.512351396703,0.493288900622,0.481257227978,0.473663450116,0.468871830484],"NMSE_map_plain_0p3":[0.731410920244,0.708766663342,0.694335831852,0.685185383206,0.679391863362,0.675726869869]}},"1080_52rb_observ":{"label":"1080 / 52RB / Observation","fileName":"1080_52rb_observ","arrays":{"EbN0_dB":[0,2,4,6,8,10],"r_list":[0.8,0.5,0.3],"BER_base_perfect":[0.140823317308,0.0976045673077,0.0586510416667,0.0277868589744,0.00920272435897,0.00170953525641],"BER_map_tra_0p8":[0.176616987179,0.126528445513,0.0817131410256,0.0440124198718,0.0176294070513,0.00448717948718],"BER_map_tra_0p5":[0.224983974359,0.171297275641,0.123209134615,0.0796354166667,0.0429931891026,0.0172427884615],"BER_map_tra_0p3":[0.280625801282,0.225653846154,0.173576522436,0.126345352564,0.0831746794872,0.0461742788462],"BER_map_plain_0p8":[0.173741185897,0.12398838141,0.0794274839744,0.0422692307692,0.0166101762821,0.00410496794872],"BER_map_plain_0p5":[0.224260016026,0.1706875,0.122634214744,0.0791374198718,0.0425645032051,0.0170056089744],"BER_map_plain_0p3":[0.281542467949,0.226433092949,0.174328125,0.127102564103,0.0838273237179,0.0467459935897],"NMSE_map_tra_0p8":[0.315538460621,0.273251044473,0.246569387906,0.229734260556,0.219111944543,0.212409646155],"NMSE_map_tra_0p5":[0.564473734201,0.537940125819,0.521199276835,0.510636803135,0.503972380204,0.499767424895],"NMSE_map_tra_0p3":[0.737729961186,0.721983684399,0.712049908808,0.705783004805,0.701829377518,0.699335157793],"NMSE_map_plain_0p8":[0.295589856172,0.25330695505,0.226628115184,0.209794780038,0.199173545466,0.192471914533],"NMSE_map_plain_0p5":[0.561555373343,0.535027155103,0.518288619708,0.507727131394,0.501063101482,0.496858194499],"NMSE_map_plain_0p3":[0.739917487651,0.724159067038,0.714215739971,0.707941657831,0.703982729244,0.701484588672]}}};
+
+    const curveStyles = {
+      '0.8': { color: '#d95319', marker: 'circle' },
+      '0.5': { color: '#0072bd', marker: 'triangle' },
+      '0.3': { color: '#7e2f8e', marker: 'diamond' }
+    };
+
+    // 상태 메시지 갱신
+    function setStatus(message, isError = false) {
+      ui.status.textContent = message;
+      ui.status.classList.toggle('error', isError);
+    }
+
+    // 바이트 정렬 계산
+    function align8(value) {
+      return Math.ceil(value / 8) * 8;
+    }
+
+    // ASCII 문자열 변환
+    function decodeAscii(bytes) {
+      let text = '';
+      for (let i = 0; i < bytes.length; i += 1) {
+        text += String.fromCharCode(bytes[i]);
+      }
+      return text;
+    }
+
+    // UTF-8 문자열 변환
+    function decodeUtf8(bytes) {
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    // NPY 헤더 해석
+    function parseNpyHeader(header) {
+      const descrMatch = header.match(/'descr'\s*:\s*'([^']+)'/);
+      const fortranMatch = header.match(/'fortran_order'\s*:\s*(True|False)/);
+      const shapeMatch = header.match(/'shape'\s*:\s*\(([^)]*)\)/);
+      if (!descrMatch || !fortranMatch || !shapeMatch) {
+        throw new Error('지원하지 않는 NPY 헤더 형식');
+      }
+
+      const shape = shapeMatch[1]
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .map(Number);
+      if (!shape.length || shape.some(value => !Number.isInteger(value) || value < 0)) {
+        throw new Error('잘못된 NPY 배열 크기');
+      }
+
+      return {
+        descr: descrMatch[1],
+        fortranOrder: fortranMatch[1] === 'True',
+        shape
+      };
+    }
+
+    // NPY 자료형 정보 추출
+    function npyDtypeInfo(descr) {
+      const hasEndian = '<>|='.includes(descr[0]);
+      const endian = hasEndian ? descr[0] : '|';
+      const body = hasEndian ? descr.slice(1) : descr;
+      const kind = body[0];
+      const bytes = Number(body.slice(1));
+      if (!Number.isInteger(bytes) || bytes <= 0) {
+        throw new Error(`지원하지 않는 NPY 자료형 ${descr}`);
+      }
+      return { endian, kind, bytes };
+    }
+
+    // NPY 숫자 읽기
+    function readNpyValue(view, offset, info, littleEndian) {
+      const { kind, bytes } = info;
+      if (kind === 'f' && bytes === 8) return view.getFloat64(offset, littleEndian);
+      if (kind === 'f' && bytes === 4) return view.getFloat32(offset, littleEndian);
+      if (kind === 'i' && bytes === 1) return view.getInt8(offset);
+      if (kind === 'i' && bytes === 2) return view.getInt16(offset, littleEndian);
+      if (kind === 'i' && bytes === 4) return view.getInt32(offset, littleEndian);
+      if (kind === 'i' && bytes === 8) return Number(view.getBigInt64(offset, littleEndian));
+      if (kind === 'u' && bytes === 1) return view.getUint8(offset);
+      if (kind === 'u' && bytes === 2) return view.getUint16(offset, littleEndian);
+      if (kind === 'u' && bytes === 4) return view.getUint32(offset, littleEndian);
+      if (kind === 'u' && bytes === 8) return Number(view.getBigUint64(offset, littleEndian));
+      if (kind === 'b' && bytes === 1) return view.getUint8(offset) ? 1 : 0;
+      throw new Error(`지원하지 않는 NPY 자료형 ${kind}${bytes}`);
+    }
+
+    // NPY 배열 해석
+    function parseNpy(arrayBuffer) {
+      const bytes = new Uint8Array(arrayBuffer);
+      if (bytes.length < 10) throw new Error('NPY 파일 크기 부족');
+
+      const magic = [0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59];
+      for (let i = 0; i < magic.length; i += 1) {
+        if (bytes[i] !== magic[i]) throw new Error('NPY 파일 서명 불일치');
+      }
+
+      const major = bytes[6];
+      const view = new DataView(arrayBuffer);
+      let headerLength;
+      let dataOffset;
+      if (major === 1) {
+        headerLength = view.getUint16(8, true);
+        dataOffset = 10 + headerLength;
+      } else if (major === 2 || major === 3) {
+        headerLength = view.getUint32(8, true);
+        dataOffset = 12 + headerLength;
+      } else {
+        throw new Error(`지원하지 않는 NPY 버전 ${major}.${bytes[7]}`);
+      }
+
+      const header = decodeAscii(bytes.slice(dataOffset - headerLength, dataOffset));
+      const meta = parseNpyHeader(header);
+      const info = npyDtypeInfo(meta.descr);
+      const count = meta.shape.reduce((total, value) => total * value, 1);
+      if (dataOffset + count * info.bytes > bytes.length) {
+        throw new Error('NPY 데이터 손상');
+      }
+
+      const littleEndian = info.endian !== '>';
+      const values = new Array(count);
+      for (let i = 0; i < count; i += 1) {
+        values[i] = readNpyValue(view, dataOffset + i * info.bytes, info, littleEndian);
+      }
+      return { values, shape: meta.shape };
+    }
+
+    // ZIP64 크기 읽기
+    function readUint64LE(bytes, offset) {
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const low = view.getUint32(offset, true);
+      const high = view.getUint32(offset + 4, true);
+      const value = high * 4294967296 + low;
+      if (!Number.isSafeInteger(value)) throw new Error('NPZ 항목 크기 초과');
+      return value;
+    }
+
+    // ZIP64 추가 필드 해석
+    function readZip64Sizes(extraBytes, compressedSize, uncompressedSize) {
+      let offset = 0;
+      let nextCompressed = compressedSize;
+      let nextUncompressed = uncompressedSize;
+      const view = new DataView(extraBytes.buffer, extraBytes.byteOffset, extraBytes.byteLength);
+
+      while (offset + 4 <= extraBytes.length) {
+        const headerId = view.getUint16(offset, true);
+        const dataSize = view.getUint16(offset + 2, true);
+        const dataStart = offset + 4;
+        const dataEnd = dataStart + dataSize;
+        if (dataEnd > extraBytes.length) break;
+
+        if (headerId === 0x0001) {
+          let cursor = dataStart;
+          if (uncompressedSize === 0xffffffff && cursor + 8 <= dataEnd) {
+            nextUncompressed = readUint64LE(extraBytes, cursor);
+            cursor += 8;
+          }
+          if (compressedSize === 0xffffffff && cursor + 8 <= dataEnd) {
+            nextCompressed = readUint64LE(extraBytes, cursor);
+          }
+          break;
+        }
+        offset = dataEnd;
+      }
+
+      return { compressedSize: nextCompressed, uncompressedSize: nextUncompressed };
+    }
+
+    // NPZ 내부 NPY 배열 해석
+    function parseNpz(arrayBuffer) {
+      if (Array.isArray(arrayBuffer)) {
+        arrayBuffer = Uint8Array.from(arrayBuffer).buffer;
+      }
+      const bytes = new Uint8Array(arrayBuffer);
+      const view = new DataView(arrayBuffer);
+      const arrays = {};
+      let offset = 0;
+
+      while (offset + 4 <= bytes.length) {
+        const signature = view.getUint32(offset, true);
+        if (signature === 0x02014b50 || signature === 0x06054b50) break;
+        if (signature !== 0x04034b50) throw new Error('지원하지 않는 NPZ 구조');
+        if (offset + 30 > bytes.length) throw new Error('NPZ 헤더 손상');
+
+        const flags = view.getUint16(offset + 6, true);
+        const method = view.getUint16(offset + 8, true);
+        let compressedSize = view.getUint32(offset + 18, true);
+        let uncompressedSize = view.getUint32(offset + 22, true);
+        const fileNameLength = view.getUint16(offset + 26, true);
+        const extraLength = view.getUint16(offset + 28, true);
+        const nameStart = offset + 30;
+        const nameEnd = nameStart + fileNameLength;
+        const dataStart = nameEnd + extraLength;
+
+        if (flags & 0x08) throw new Error('데이터 설명자가 포함된 NPZ는 지원하지 않음');
+        if (method !== 0) throw new Error('압축 NPZ는 지원하지 않음');
+        if (dataStart > bytes.length) throw new Error('NPZ 항목 헤더 손상');
+
+        const extraBytes = bytes.slice(nameEnd, dataStart);
+        if (compressedSize === 0xffffffff || uncompressedSize === 0xffffffff) {
+          const sizes = readZip64Sizes(extraBytes, compressedSize, uncompressedSize);
+          compressedSize = sizes.compressedSize;
+          uncompressedSize = sizes.uncompressedSize;
+        }
+
+        const dataEnd = dataStart + compressedSize;
+        if (dataEnd > bytes.length) throw new Error('NPZ 항목 데이터 손상');
+
+        const fileName = decodeUtf8(bytes.slice(nameStart, nameEnd));
+        if (/\.npy$/i.test(fileName) && compressedSize > 0) {
+          const name = fileName.replace(/\\/g, '/').split('/').pop().replace(/\.npy$/i, '');
+          arrays[name] = parseNpy(arrayBuffer.slice(dataStart, dataEnd)).values;
+        }
+        offset = dataEnd;
+      }
+
+      if (!Object.keys(arrays).length) throw new Error('NPZ 내부 NPY 배열 없음');
+      return arrays;
+    }
+
+    // MAT 데이터 요소 태그 해석
+    function readMatElement(view, offset, littleEndian) {
+      if (offset + 8 > view.byteLength) return null;
+      const packed = view.getUint32(offset, littleEndian);
+      const smallBytes = packed >>> 16;
+      if (smallBytes > 0 && smallBytes <= 4) {
+        return {
+          type: packed & 0xffff,
+          size: smallBytes,
+          dataOffset: offset + 4,
+          nextOffset: offset + 8
+        };
+      }
+
+      const size = view.getUint32(offset + 4, littleEndian);
+      const dataOffset = offset + 8;
+      return {
+        type: packed,
+        size,
+        dataOffset,
+        nextOffset: align8(dataOffset + size)
+      };
+    }
+
+    // MAT 숫자 배열 변환
+    function readMatNumeric(view, element, littleEndian) {
+      const readers = {
+        1: [1, (offset) => view.getInt8(offset)],
+        2: [1, (offset) => view.getUint8(offset)],
+        3: [2, (offset) => view.getInt16(offset, littleEndian)],
+        4: [2, (offset) => view.getUint16(offset, littleEndian)],
+        5: [4, (offset) => view.getInt32(offset, littleEndian)],
+        6: [4, (offset) => view.getUint32(offset, littleEndian)],
+        7: [4, (offset) => view.getFloat32(offset, littleEndian)],
+        9: [8, (offset) => view.getFloat64(offset, littleEndian)],
+        12: [8, (offset) => Number(view.getBigInt64(offset, littleEndian))],
+        13: [8, (offset) => Number(view.getBigUint64(offset, littleEndian))]
+      };
+      const reader = readers[element.type];
+      if (!reader) throw new Error(`지원하지 않는 MAT 숫자 형식 ${element.type}`);
+
+      const [bytesPerValue, readValue] = reader;
+      const count = Math.floor(element.size / bytesPerValue);
+      const values = new Array(count);
+      for (let i = 0; i < count; i += 1) {
+        values[i] = readValue(element.dataOffset + i * bytesPerValue);
+      }
+      return values;
+    }
+
+    // MAT 행렬 요소 해석
+    function parseMatMatrix(buffer, matrixOffset, matrixSize, littleEndian) {
+      const view = new DataView(buffer);
+      const end = Math.min(view.byteLength, matrixOffset + matrixSize);
+      let cursor = matrixOffset;
+
+      const flags = readMatElement(view, cursor, littleEndian);
+      if (!flags) throw new Error('MAT 배열 플래그 누락');
+      cursor = flags.nextOffset;
+
+      const dimensions = readMatElement(view, cursor, littleEndian);
+      if (!dimensions) throw new Error('MAT 배열 크기 누락');
+      cursor = dimensions.nextOffset;
+
+      const nameElement = readMatElement(view, cursor, littleEndian);
+      if (!nameElement) throw new Error('MAT 배열 이름 누락');
+      const nameBytes = new Uint8Array(buffer, nameElement.dataOffset, nameElement.size);
+      const name = decodeUtf8(nameBytes);
+      cursor = nameElement.nextOffset;
+
+      const realElement = readMatElement(view, cursor, littleEndian);
+      if (!realElement || realElement.nextOffset > end + 8) {
+        throw new Error(`MAT 배열 ${name} 데이터 누락`);
+      }
+      return { name, values: readMatNumeric(view, realElement, littleEndian) };
+    }
+
+    // zlib 압축 해제
+    async function inflateMat(bytes) {
+      if (!window.DecompressionStream) {
+        throw new Error('압축 MAT를 지원하지 않는 브라우저');
+      }
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+      return await new Response(stream).arrayBuffer();
+    }
+
+    // MAT v5 결과 해석
+    async function parseMat(arrayBuffer) {
+      if (arrayBuffer.byteLength < 128) throw new Error('MAT 파일 크기 부족');
+      const header = new Uint8Array(arrayBuffer, 0, 128);
+      const endian = String.fromCharCode(header[126], header[127]);
+      const littleEndian = endian === 'IM';
+      if (!littleEndian && endian !== 'MI') throw new Error('MAT v5 헤더 불일치');
+
+      const arrays = {};
+
+      async function parseElements(buffer, startOffset) {
+        const view = new DataView(buffer);
+        let offset = startOffset;
+        while (offset + 8 <= view.byteLength) {
+          const element = readMatElement(view, offset, littleEndian);
+          if (!element || element.size < 0 || element.nextOffset > view.byteLength + 8) break;
+
+          if (element.type === 14) {
+            const parsed = parseMatMatrix(
+              buffer,
+              element.dataOffset,
+              element.size,
+              littleEndian
+            );
+            if (parsed.name && !parsed.name.startsWith('__')) arrays[parsed.name] = parsed.values;
+          } else if (element.type === 15) {
+            const compressed = new Uint8Array(buffer, element.dataOffset, element.size);
+            const inflated = await inflateMat(compressed);
+            await parseElements(inflated, 0);
+          }
+          offset = element.nextOffset;
+        }
+      }
+
+      await parseElements(arrayBuffer, 128);
+      if (!Object.keys(arrays).length) throw new Error('MAT 내부 숫자 배열 없음');
+      return arrays;
+    }
+
+    // 대소문자 무시 배열 조회
+    function findArray(arrays, target) {
+      if (arrays[target]) return arrays[target];
+      const key = Object.keys(arrays).find(name => name.toLowerCase() === target.toLowerCase());
+      return key ? arrays[key] : null;
+    }
+
+    // SNR 입력값 해석
+    function parseSnrInput() {
+      const values = ui.snrInput.value
+        .split(/[\s,;]+/)
+        .map(value => value.trim())
+        .filter(Boolean)
+        .map(Number);
+      if (!values.length || values.some(value => !Number.isFinite(value))) {
+        throw new Error('SNR 값 형식 오류');
+      }
+      return values;
+    }
+
+    // 결과 키에서 r 목록 추출
+    function inferRList(arrays) {
+      const values = new Set();
+      for (const key of Object.keys(arrays)) {
+        const match = key.match(/^(?:BER|NMSE)_map_(?:tra|plain)_(-?\d+)p(\d+)$/i);
+        if (match) values.add(Number(`${match[1]}.${match[2]}`));
+      }
+      return Array.from(values).sort((a, b) => b - a);
+    }
+
+    // 저장 결과를 그래프 구조로 변환
+    function buildGraphData(arrays) {
+      const rStored = findArray(arrays, 'r_list');
+      const rList = rStored
+        ? rStored.filter(Number.isFinite).map(Number)
+        : inferRList(arrays);
+      if (!rList.length) throw new Error('r_list 또는 r별 결과 키를 찾을 수 없음');
+
+      const firstKey = Object.keys(arrays).find(key => /^BER_map_(tra|plain)_/i.test(key));
+      if (!firstKey) throw new Error('BER 결과 배열을 찾을 수 없음');
+      const pointCount = arrays[firstKey].length;
+
+      const storedSnr = findArray(arrays, 'EbN0_dB');
+      let snr;
+      if (storedSnr && storedSnr.length === pointCount) {
+        snr = storedSnr.map(Number);
+        ui.snrInput.value = snr.join(', ');
+      } else {
+        snr = parseSnrInput();
+        if (snr.length !== pointCount) {
+          if (pointCount === 1) {
+            snr = [-20];
+          } else {
+            snr = Array.from({ length: pointCount }, (_, index) => -20 + index * 2);
+          }
+          ui.snrInput.value = snr.join(', ');
+        }
+      }
+
+      const nmse = [];
+      const ber = [];
+      const baseBer = findArray(arrays, 'BER_base_perfect');
+      if (baseBer) {
+        ber.push({
+          label: 'Baseline (Perfect CSIR)',
+          values: baseBer.map(value => value > 0 && Number.isFinite(value) ? value : NaN),
+          color: '#000000',
+          dash: [3, 7],
+          marker: 'star'
+        });
+      }
+
+      for (const r of rList) {
+        const suffix = String(r).replace('.', 'p');
+        const style = curveStyles[String(r)] || { color: '#455a64', marker: 'circle' };
+        const nmseTra = findArray(arrays, `NMSE_map_tra_${suffix}`);
+        const nmsePlain = findArray(arrays, `NMSE_map_plain_${suffix}`);
+        const berTra = findArray(arrays, `BER_map_tra_${suffix}`);
+        const berPlain = findArray(arrays, `BER_map_plain_${suffix}`);
+
+        if (!nmseTra || !nmsePlain || !berTra || !berPlain) {
+          throw new Error(`r=${r} 결과 배열 일부 누락`);
+        }
+
+        nmse.push({
+          label: `Transformer (r = ${r.toFixed(3)})`,
+          values: nmseTra.map(value => 10 * Math.log10(Math.max(Number(value), 1e-300))),
+          color: style.color,
+          dash: [],
+          marker: style.marker
+        });
+        nmse.push({
+          label: `Plain DNN (r = ${r.toFixed(3)})`,
+          values: nmsePlain.map(value => 10 * Math.log10(Math.max(Number(value), 1e-300))),
+          color: style.color,
+          dash: [14, 8],
+          marker: style.marker
+        });
+        ber.push({
+          label: `Transformer (r = ${r.toFixed(3)})`,
+          values: berTra.map(value => value > 0 && Number.isFinite(value) ? value : NaN),
+          color: style.color,
+          dash: [],
+          marker: style.marker
+        });
+        ber.push({
+          label: `Plain DNN (r = ${r.toFixed(3)})`,
+          values: berPlain.map(value => value > 0 && Number.isFinite(value) ? value : NaN),
+          color: style.color,
+          dash: [14, 8],
+          marker: style.marker
+        });
+      }
+
+      for (const series of [...nmse, ...ber]) {
+        if (series.values.length !== snr.length) {
+          throw new Error(`${series.label} 데이터 길이와 SNR 길이 불일치`);
+        }
+      }
+      return { snr, rList, nmse, ber };
+    }
+
+    // 유효 숫자 범위 계산
+    function finiteRange(seriesList) {
+      const values = seriesList.flatMap(series => series.values).filter(Number.isFinite);
+      if (!values.length) throw new Error('표시 가능한 결과값 없음');
+      return { min: Math.min(...values), max: Math.max(...values) };
+    }
+
+    // NMSE 1 dB 단위 축 범위와 눈금 생성
+    function linearScale(minValue, maxValue) {
+      let min = minValue;
+      let max = maxValue;
+      if (min === max) {
+        min -= 1;
+        max += 1;
+      }
+      const padding = (max - min) * 0.08;
+      const axisMin = Math.floor(min - padding);
+      const axisMax = Math.ceil(max + padding);
+      const ticks = [];
+      for (let value = axisMin; value <= axisMax; value += 1) {
+        ticks.push(value);
+      }
+      return { min: axisMin, max: axisMax, ticks };
+    }
+
+    // BER 로그 축 자동 범위 계산
+    function logScale(seriesList) {
+      const values = seriesList
+        .flatMap(series => series.values)
+        .filter(value => Number.isFinite(value) && value > 0);
+      if (!values.length) throw new Error('표시 가능한 양수 BER 없음');
+
+      const logMin = Math.log10(Math.min(...values));
+      const logMax = Math.log10(Math.max(...values));
+      const span = Math.max(logMax - logMin, 0.5);
+      const padding = 0.08 * span;
+      const min = logMin - padding;
+      const max = Math.min(0, logMax + padding);
+      const majorTicks = [];
+      for (let exponent = Math.ceil(min); exponent <= Math.floor(max); exponent += 1) {
+        majorTicks.push(exponent);
+      }
+      return { min, max, majorTicks };
+    }
+
+    // 숫자 레이블 형식
+    function formatTick(value) {
+      if (Math.abs(value) >= 100 || Number.isInteger(value)) return String(Math.round(value));
+      return value.toFixed(1).replace(/\.0$/, '');
+    }
+
+    // 캔버스 공통 글꼴
+    function setFont(size, weight = '400') {
+      ctx.font = `${weight} ${size}px "Times New Roman", Times, serif`;
+    }
+
+    // 마커 그리기
+    function drawMarker(x, y, type, color, size) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.beginPath();
+
+      if (type === 'triangle') {
+        ctx.moveTo(0, -size);
+        ctx.lineTo(size * 0.9, size * 0.75);
+        ctx.lineTo(-size * 0.9, size * 0.75);
+        ctx.closePath();
+      } else if (type === 'diamond') {
+        ctx.moveTo(0, -size);
+        ctx.lineTo(size, 0);
+        ctx.lineTo(0, size);
+        ctx.lineTo(-size, 0);
+        ctx.closePath();
+      } else if (type === 'star') {
+        for (let index = 0; index < 10; index += 1) {
+          const radius = index % 2 === 0 ? size : size * 0.42;
+          const angle = -Math.PI / 2 + index * Math.PI / 5;
+          const px = Math.cos(angle) * radius;
+          const py = Math.sin(angle) * radius;
+          if (index === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+      } else {
+        ctx.arc(0, 0, size * 0.72, 0, Math.PI * 2);
+      }
+
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 범례 그리기
+    function drawLegend(plot, seriesList, fontSize) {
+      const visible = seriesList.filter(series => series.values.some(Number.isFinite));
+      setFont(fontSize * 0.74);
+      const lineHeight = fontSize * 1.05;
+      const sampleWidth = fontSize * 1.9;
+      const textWidth = Math.max(...visible.map(series => ctx.measureText(series.label).width));
+      const width = sampleWidth + textWidth + fontSize * 1.25;
+      const height = visible.length * lineHeight + fontSize * 0.75;
+      const x = plot.left + fontSize * 0.45;
+      const y = plot.bottom - height - fontSize * 0.35;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+      ctx.strokeStyle = '#c9cfd5';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.rect(x, y, width, height);
+      ctx.fill();
+      ctx.stroke();
+
+      visible.forEach((series, index) => {
+        const cy = y + fontSize * 0.55 + index * lineHeight + lineHeight * 0.48;
+        const x1 = x + fontSize * 0.35;
+        const x2 = x1 + sampleWidth;
+        ctx.strokeStyle = series.color;
+        ctx.lineWidth = 3;
+        ctx.setLineDash(series.dash);
+        ctx.beginPath();
+        ctx.moveTo(x1, cy);
+        ctx.lineTo(x2, cy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        drawMarker((x1 + x2) / 2, cy, series.marker, series.color, fontSize * 0.28);
+
+        ctx.fillStyle = '#111111';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(series.label, x2 + fontSize * 0.35, cy);
+      });
+      ctx.restore();
+    }
+
+    // 패널 축과 데이터 그리기
+    function drawPanel(panel, xValues, seriesList, yLabel, logarithmic, fontSize) {
+      const margins = {
+        left: fontSize * 3.8,
+        right: fontSize * 1.0,
+        top: fontSize * 1.0,
+        bottom: fontSize * 3.2
+      };
+      const plot = {
+        left: panel.x + margins.left,
+        top: panel.y + margins.top,
+        right: panel.x + panel.width - margins.right,
+        bottom: panel.y + panel.height - margins.bottom
+      };
+      plot.width = plot.right - plot.left;
+      plot.height = plot.bottom - plot.top;
+
+      const xMin = Math.min(...xValues);
+      const xMax = Math.max(...xValues);
+      const safeXSpan = Math.max(xMax - xMin, 1);
+      const yScale = logarithmic
+        ? logScale(seriesList)
+        : linearScale(finiteRange(seriesList).min, finiteRange(seriesList).max);
+
+      const mapX = value => plot.left + (value - xMin) / safeXSpan * plot.width;
+      const mapY = logarithmic
+        ? value => plot.bottom - (Math.log10(value) - yScale.min) / (yScale.max - yScale.min) * plot.height
+        : value => plot.bottom - (value - yScale.min) / (yScale.max - yScale.min) * plot.height;
+
+      ctx.save();
+      ctx.strokeStyle = '#aeb6be';
+      ctx.lineWidth = 1.5;
+      ctx.fillStyle = '#111111';
+      setFont(fontSize * 0.72);
+
+      for (const xValue of xValues) {
+        const x = mapX(xValue);
+        ctx.beginPath();
+        ctx.moveTo(x, plot.top);
+        ctx.lineTo(x, plot.bottom);
+        ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(formatTick(xValue), x, plot.bottom + fontSize * 0.42);
+      }
+
+      if (logarithmic) {
+        const startExponent = Math.floor(yScale.min);
+        const endExponent = Math.ceil(yScale.max);
+        for (let exponent = startExponent; exponent <= endExponent; exponent += 1) {
+          for (let multiplier = 1; multiplier <= 9; multiplier += 1) {
+            const value = multiplier * 10 ** exponent;
+            const logValue = Math.log10(value);
+            if (logValue < yScale.min || logValue > yScale.max) continue;
+            const y = mapY(value);
+            ctx.strokeStyle = multiplier === 1 ? '#9ea7af' : '#d2d7dc';
+            ctx.lineWidth = multiplier === 1 ? 1.7 : 1;
+            ctx.beginPath();
+            ctx.moveTo(plot.left, y);
+            ctx.lineTo(plot.right, y);
+            ctx.stroke();
+            if (multiplier === 1) {
+              ctx.fillStyle = '#111111';
+              ctx.textAlign = 'right';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(`10${superscript(exponent)}`, plot.left - fontSize * 0.35, y);
+            }
+          }
+        }
+      } else {
+        for (const value of yScale.ticks) {
+          const y = mapY(value);
+          ctx.strokeStyle = '#b6bec6';
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.moveTo(plot.left, y);
+          ctx.lineTo(plot.right, y);
+          ctx.stroke();
+          ctx.fillStyle = '#111111';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(formatTick(value), plot.left - fontSize * 0.35, y);
+        }
+      }
+
+      ctx.strokeStyle = '#222222';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(plot.left, plot.top, plot.width, plot.height);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(plot.left, plot.top, plot.width, plot.height);
+      ctx.clip();
+      for (const series of seriesList) {
+        ctx.strokeStyle = series.color;
+        ctx.lineWidth = 3.5;
+        ctx.setLineDash(series.dash);
+        ctx.beginPath();
+        let active = false;
+        for (let index = 0; index < series.values.length; index += 1) {
+          const value = series.values[index];
+          if (!Number.isFinite(value) || (logarithmic && value <= 0)) {
+            active = false;
+            continue;
+          }
+          const x = mapX(xValues[index]);
+          const y = mapY(value);
+          if (!active) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+          active = true;
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        for (let index = 0; index < series.values.length; index += 1) {
+          const value = series.values[index];
+          if (!Number.isFinite(value) || (logarithmic && value <= 0)) continue;
+          const x = mapX(xValues[index]);
+          const y = mapY(value);
+          drawMarker(
+            x,
+            y,
+            series.marker,
+            series.color,
+            fontSize * 0.34
+          );
+          state.hitPoints.push({
+            x,
+            y,
+            label: series.label,
+            snr: xValues[index],
+            metric: logarithmic ? 'BER' : 'NMSE',
+            value
+          });
+        }
+      }
+      ctx.restore();
+
+      setFont(fontSize * 0.88);
+      ctx.fillStyle = '#111111';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('SNR [dB]', (plot.left + plot.right) / 2, panel.y + panel.height - fontSize * 0.25);
+
+      ctx.save();
+      ctx.translate(panel.x + fontSize * 0.62, (plot.top + plot.bottom) / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(yLabel, 0, 0);
+      ctx.restore();
+
+      drawLegend(plot, seriesList, fontSize);
+      ctx.restore();
+    }
+
+    // 지수 위첨자 문자열
+    function superscript(value) {
+      const map = {
+        '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
+      };
+      return String(value).split('').map(char => map[char] || char).join('');
+    }
+
+    // 전체 그래프 렌더링
+    function render() {
+      state.hitPoints = [];
+      hideTooltip();
+      if (!state.arrays) {
+        const width = Number(ui.widthInput.value) || 2600;
+        const height = Number(ui.heightInput.value) || 1500;
+        ui.canvas.width = width;
+        ui.canvas.height = height;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        return;
+      }
+
+      state.graph = buildGraphData(state.arrays);
+      const width = Math.max(1000, Math.min(5000, Number(ui.widthInput.value) || 2600));
+      const height = Math.max(500, Math.min(3000, Number(ui.heightInput.value) || 1500));
+      const fontSize = Math.max(16, Math.min(48, Number(ui.fontInput.value) || 28));
+      ui.canvas.width = width;
+      ui.canvas.height = height;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      const outer = fontSize * 0.75;
+      const gap = fontSize * 1.4;
+      const panelWidth = (width - outer * 2 - gap) / 2;
+      const panelHeight = height - outer * 2;
+      drawPanel(
+        { x: outer, y: outer, width: panelWidth, height: panelHeight },
+        state.graph.snr,
+        state.graph.nmse,
+        'NMSE [dB]',
+        false,
+        fontSize
+      );
+      drawPanel(
+        { x: outer + panelWidth + gap, y: outer, width: panelWidth, height: panelHeight },
+        state.graph.snr,
+        state.graph.ber,
+        'BER',
+        true,
+        fontSize
+      );
+
+      ui.meta.textContent = `SNR ${state.graph.snr.length}개 · r ${state.graph.rList.join(', ')}`;
+      ui.saveButton.disabled = false;
+    }
+
+    // 툴팁 숨김
+    function hideTooltip() {
+      ui.tooltip.classList.remove('visible');
+    }
+
+    // 결과값 표시 형식
+    function formatTooltipValue(point) {
+      if (point.metric === 'BER') {
+        return point.value.toExponential(5);
+      }
+      return `${point.value.toFixed(4)} dB`;
+    }
+
+    // 마커 근접 위치의 결과값 표시
+    function showTooltip(event) {
+      if (!state.hitPoints.length) {
+        hideTooltip();
+        return;
+      }
+
+      const rect = ui.canvas.getBoundingClientRect();
+      const canvasX = (event.clientX - rect.left) * ui.canvas.width / rect.width;
+      const canvasY = (event.clientY - rect.top) * ui.canvas.height / rect.height;
+      const threshold = 14 * Math.max(
+        ui.canvas.width / rect.width,
+        ui.canvas.height / rect.height
+      );
+      let nearest = null;
+      let nearestDistance = Infinity;
+
+      for (const point of state.hitPoints) {
+        const distance = Math.hypot(point.x - canvasX, point.y - canvasY);
+        if (distance < nearestDistance) {
+          nearest = point;
+          nearestDistance = distance;
+        }
+      }
+
+      if (!nearest || nearestDistance > threshold) {
+        hideTooltip();
+        return;
+      }
+
+      ui.tooltip.textContent = [
+        nearest.label,
+        `SNR: ${formatTick(nearest.snr)} dB`,
+        `${nearest.metric}: ${formatTooltipValue(nearest)}`
+      ].join('\n');
+      ui.tooltip.classList.add('visible');
+
+      const tooltipRect = ui.tooltip.getBoundingClientRect();
+      const left = Math.min(
+        event.clientX + 14,
+        window.innerWidth - tooltipRect.width - 8
+      );
+      const top = Math.min(
+        event.clientY + 14,
+        window.innerHeight - tooltipRect.height - 8
+      );
+      ui.tooltip.style.left = `${Math.max(8, left)}px`;
+      ui.tooltip.style.top = `${Math.max(8, top)}px`;
+    }
+
+    // 결과 파일 불러오기
+    async function loadFile(file) {
+      if (!file || !/\.(mat|npz)$/i.test(file.name)) {
+        setStatus('MAT 또는 NPZ 파일만 선택 가능', true);
+        return;
+      }
+
+      try {
+        setStatus(`${file.name} 분석 중`);
+        const buffer = await file.arrayBuffer();
+        const arrays = /\.npz$/i.test(file.name)
+          ? parseNpz(buffer)
+          : await parseMat(buffer);
+        state.fileName = file.name.replace(/\.(mat|npz)$/i, '');
+        state.arrays = arrays;
+        ui.bundledSelect.value = '';
+        render();
+        ui.clearButton.disabled = false;
+        setStatus(`${file.name} 로드 완료`);
+      } catch (error) {
+        state.arrays = null;
+        state.graph = null;
+        ui.saveButton.disabled = true;
+        ui.meta.textContent = '';
+        render();
+        setStatus(error instanceof Error ? error.message : String(error), true);
+      }
+    }
+
+    // 페이지에 포함된 NPZ 결과 선택
+    function loadBundledResult(key) {
+      const result = bundledResults[key];
+      if (!result) return;
+      try {
+        state.fileName = result.fileName;
+        state.arrays = result.arrays;
+        ui.fileInput.value = '';
+        render();
+        ui.clearButton.disabled = false;
+        setStatus(`${result.label} 로드 완료`);
+      } catch (error) {
+        state.arrays = null;
+        state.graph = null;
+        ui.saveButton.disabled = true;
+        ui.meta.textContent = '';
+        render();
+        setStatus(error instanceof Error ? error.message : String(error), true);
+      }
+    }
+
+    // PNG 파일 저장
+    function savePng() {
+      if (!state.graph) return;
+      ui.canvas.toBlob(blob => {
+        if (!blob) {
+          setStatus('PNG 생성 실패', true);
+          return;
+        }
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${state.fileName || 'jcci_results'}_graph.png`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }, 'image/png');
+    }
+
+    // 화면 초기화
+    function clearAll() {
+      state.fileName = '';
+      state.arrays = null;
+      state.graph = null;
+      ui.bundledSelect.value = '';
+      ui.fileInput.value = '';
+      ui.meta.textContent = '';
+      ui.clearButton.disabled = true;
+      ui.saveButton.disabled = true;
+      setStatus('결과 파일 미선택');
+      render();
+    }
+
+    // 파일 선택 이벤트 연결
+    ui.dropZone.addEventListener('click', () => ui.fileInput.click());
+    ui.dropZone.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        ui.fileInput.click();
+      }
+    });
+    ui.fileInput.addEventListener('change', () => loadFile(ui.fileInput.files[0]));
+    ui.bundledSelect.addEventListener('change', () => loadBundledResult(ui.bundledSelect.value));
+
+    for (const eventName of ['dragenter', 'dragover']) {
+      ui.dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        ui.dropZone.classList.add('dragging');
+      });
+    }
+    for (const eventName of ['dragleave', 'drop']) {
+      ui.dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        ui.dropZone.classList.remove('dragging');
+      });
+    }
+    ui.dropZone.addEventListener('drop', event => loadFile(event.dataTransfer.files[0]));
+    ui.clearButton.addEventListener('click', clearAll);
+    ui.saveButton.addEventListener('click', savePng);
+    ui.canvas.addEventListener('mousemove', showTooltip);
+    ui.canvas.addEventListener('mouseleave', hideTooltip);
+
+    // 그래프 설정 변경 이벤트 연결
+    for (const input of [ui.snrInput, ui.widthInput, ui.heightInput, ui.fontInput]) {
+      input.addEventListener('change', () => {
+        try {
+          render();
+          if (state.arrays) setStatus(`${state.fileName} 그래프 갱신 완료`);
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : String(error), true);
+        }
+      });
+    }
+
+    loadBundledResult(ui.bundledSelect.value);
+  </script>
+</body>
+</html>
