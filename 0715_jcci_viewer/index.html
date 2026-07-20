@@ -285,15 +285,15 @@
         </label>
         <label>
           PNG 너비
-          <input id="widthInput" type="number" min="1000" max="5000" step="100" value="2600">
+          <input id="widthInput" type="number" min="1000" max="5000" step="100" value="2700">
         </label>
         <label>
           PNG 높이
-          <input id="heightInput" type="number" min="500" max="3000" step="100" value="1500">
+          <input id="heightInput" type="number" min="500" max="3000" step="100" value="1800">
         </label>
         <label>
           글꼴
-          <input id="fontInput" type="number" min="16" max="48" step="1" value="28">
+          <input id="fontInput" type="number" min="16" max="72" step="1" value="48">
         </label>
       </div>
 
@@ -311,7 +311,7 @@
 
     <section class="chart-panel" aria-label="NMSE 및 BER 그래프">
       <div class="canvas-wrap">
-        <canvas id="chart" width="2600" height="1500"></canvas>
+        <canvas id="chart" width="2700" height="1800"></canvas>
         <div class="tooltip" id="tooltip" role="status"></div>
       </div>
     </section>
@@ -1015,6 +1015,18 @@
           }
         }
       } else {
+        const minorStart = Math.ceil(yScale.min * 10);
+        const minorEnd = Math.floor(yScale.max * 10);
+        for (let tickIndex = minorStart; tickIndex <= minorEnd; tickIndex += 1) {
+          if (tickIndex % 10 === 0) continue;
+          const y = mapY(tickIndex / 10);
+          ctx.strokeStyle = '#dfe3e7';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(plot.left, y);
+          ctx.lineTo(plot.right, y);
+          ctx.stroke();
+        }
         for (const value of yScale.ticks) {
           const y = mapY(value);
           ctx.strokeStyle = '#b6bec6';
@@ -1115,8 +1127,8 @@
       state.hitPoints = [];
       hideTooltip();
       if (!state.arrays) {
-        const width = Number(ui.widthInput.value) || 2600;
-        const height = Number(ui.heightInput.value) || 1500;
+        const width = Number(ui.widthInput.value) || 2700;
+        const height = Number(ui.heightInput.value) || 1800;
         ui.canvas.width = width;
         ui.canvas.height = height;
         ctx.fillStyle = '#ffffff';
@@ -1125,9 +1137,9 @@
       }
 
       state.graph = buildGraphData(state.arrays);
-      const width = Math.max(1000, Math.min(5000, Number(ui.widthInput.value) || 2600));
-      const height = Math.max(500, Math.min(3000, Number(ui.heightInput.value) || 1500));
-      const fontSize = Math.max(16, Math.min(48, Number(ui.fontInput.value) || 28));
+      const width = Math.max(1000, Math.min(5000, Number(ui.widthInput.value) || 2700));
+      const height = Math.max(500, Math.min(3000, Number(ui.heightInput.value) || 1800));
+      const fontSize = Math.max(16, Math.min(72, Number(ui.fontInput.value) || 48));
       ui.canvas.width = width;
       ui.canvas.height = height;
 
