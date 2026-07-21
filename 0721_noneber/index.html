@@ -77,6 +77,11 @@
       outline: none;
     }
 
+    .source-picker {
+      display: grid;
+      gap: 8px;
+    }
+
     input[type="file"] {
       position: absolute;
       inline-size: 1px;
@@ -101,7 +106,8 @@
     }
 
     input[type="text"],
-    input[type="number"] {
+    input[type="number"],
+    select {
       width: 100%;
       height: 38px;
       padding: 8px 10px;
@@ -112,7 +118,8 @@
       font: inherit;
     }
 
-    input:focus-visible {
+    input:focus-visible,
+    select:focus-visible {
       border-color: var(--primary);
       outline: 2px solid rgba(23, 95, 140, 0.14);
     }
@@ -257,8 +264,17 @@
     <h1>JCCI Result Graph Viewer</h1>
 
     <section class="toolbar" aria-label="결과 그래프 도구">
-      <div class="drop-zone" id="dropZone" role="button" tabindex="0">
-        MAT 또는 NPZ 결과 파일 선택
+      <div class="source-picker">
+        <label>
+          내장 NPZ 결과
+          <select id="bundledSelect">
+            <option value="delay_angle_noise_free" selected>Delay-Angle / Noise-free</option>
+            <option value="observation_noise_free">Observation / Noise-free</option>
+          </select>
+        </label>
+        <div class="drop-zone" id="dropZone" role="button" tabindex="0">
+          다른 MAT 또는 NPZ 결과 파일 선택
+        </div>
       </div>
 
       <div class="field-grid">
@@ -302,6 +318,7 @@
 
   <script>
     const ui = {
+      bundledSelect: document.getElementById('bundledSelect'),
       fileInput: document.getElementById('fileInput'),
       dropZone: document.getElementById('dropZone'),
       snrInput: document.getElementById('snrInput'),
@@ -322,6 +339,45 @@
       arrays: null,
       graph: null,
       hitPoints: []
+    };
+
+    const bundledResults = {
+      delay_angle_noise_free: {
+        label: 'Delay-Angle / Noise-free',
+        fileName: 'DELAY_ANGLE_NOISE_FREE_0721_0703',
+        arrays: {
+          EbN0_dB: [Infinity],
+          r_list: [0.5],
+          noise_free: [1],
+          BER_base_perfect: [0],
+          BER_map_tra_0p5: [0],
+          BER_map_plain_0p5: [0],
+          NMSE_map_tra_0p5: [0.23614096020875855],
+          NMSE_map_plain_0p5: [0.4658737252569061]
+        }
+      },
+      observation_noise_free: {
+        label: 'Observation / Noise-free',
+        fileName: 'OBSERVATION_NOISE_FREE_0721_0239',
+        arrays: {
+          EbN0_dB: [Infinity],
+          r_list: [0.8, 0.5, 0.3],
+          noise_free: [1],
+          BER_base_perfect: [0],
+          BER_map_tra_0p8: [0],
+          BER_map_tra_0p5: [0],
+          BER_map_tra_0p3: [0],
+          BER_map_plain_0p8: [0],
+          BER_map_plain_0p5: [0],
+          BER_map_plain_0p3: [0],
+          NMSE_map_tra_0p8: [0.11106991743585823],
+          NMSE_map_tra_0p5: [0.3114679153935101],
+          NMSE_map_tra_0p3: [0.542928795722324],
+          NMSE_map_plain_0p8: [0.17021668305456109],
+          NMSE_map_plain_0p5: [0.4676474385511443],
+          NMSE_map_plain_0p3: [0.6790253140483573]
+        }
+      }
     };
 
     const curveStyles = {
@@ -1298,12 +1354,37 @@
           : await parseMat(buffer);
         state.fileName = file.name.replace(/\.(mat|npz)$/i, '');
         state.arrays = arrays;
+        ui.bundledSelect.value = '';
         render();
         ui.clearButton.disabled = false;
         const skipped = [];
         if (!state.graph.hasNmse) skipped.push('NMSE 생략');
         if (!state.graph.hasBer) skipped.push('BER 생략');
         setStatus(`${file.name} 로드 완료${skipped.length ? ` · ${skipped.join(', ')}` : ''}`);
+      } catch (error) {
+        state.arrays = null;
+        state.graph = null;
+        ui.saveButton.disabled = true;
+        ui.meta.textContent = '';
+        render();
+        setStatus(error instanceof Error ? error.message : String(error), true);
+      }
+    }
+
+    // 페이지에 포함된 noise-free NPZ 결과 선택
+    function loadBundledResult(key) {
+      const result = bundledResults[key];
+      if (!result) return;
+      try {
+        state.fileName = result.fileName;
+        state.arrays = result.arrays;
+        ui.fileInput.value = '';
+        render();
+        ui.clearButton.disabled = false;
+        const skipped = [];
+        if (!state.graph.hasNmse) skipped.push('NMSE 생략');
+        if (!state.graph.hasBer) skipped.push('BER 생략');
+        setStatus(`${result.label} 로드 완료${skipped.length ? ` · ${skipped.join(', ')}` : ''}`);
       } catch (error) {
         state.arrays = null;
         state.graph = null;
@@ -1335,6 +1416,7 @@
       state.fileName = '';
       state.arrays = null;
       state.graph = null;
+      ui.bundledSelect.value = '';
       ui.fileInput.value = '';
       ui.meta.textContent = '';
       ui.clearButton.disabled = true;
@@ -1352,6 +1434,7 @@
       }
     });
     ui.fileInput.addEventListener('change', () => loadFile(ui.fileInput.files[0]));
+    ui.bundledSelect.addEventListener('change', () => loadBundledResult(ui.bundledSelect.value));
 
     for (const eventName of ['dragenter', 'dragover']) {
       ui.dropZone.addEventListener(eventName, event => {
@@ -1383,7 +1466,7 @@
       });
     }
 
-    render();
+    loadBundledResult(ui.bundledSelect.value);
   </script>
 </body>
 </html>
