@@ -284,11 +284,11 @@
         </label>
         <label>
           PNG 너비
-          <input id="widthInput" type="number" min="1000" max="5000" step="100" value="2600">
+          <input id="widthInput" type="number" min="300" max="5000" step="100" value="2600">
         </label>
         <label>
           PNG 높이
-          <input id="heightInput" type="number" min="500" max="3000" step="100" value="1500">
+          <input id="heightInput" type="number" min="300" max="3000" step="100" value="1500">
         </label>
         <label>
           글꼴
@@ -385,6 +385,19 @@
       '0.5': { color: '#0072bd', marker: 'triangle' },
       '0.3': { color: '#7e2f8e', marker: 'diamond' }
     };
+
+    // 색상 계열과 명도는 유지하면서 채도를 낮춤
+    function desaturateColor(hexColor, chromaFactor = 0.45) {
+      const match = /^#([0-9a-f]{6})$/i.exec(hexColor);
+      if (!match) return hexColor;
+      const value = Number.parseInt(match[1], 16);
+      const red = (value >> 16) & 255;
+      const green = (value >> 8) & 255;
+      const blue = value & 255;
+      const gray = 0.299 * red + 0.587 * green + 0.114 * blue;
+      const mix = channel => Math.round(gray + (channel - gray) * chromaFactor);
+      return `rgb(${mix(red)}, ${mix(green)}, ${mix(blue)})`;
+    }
 
     // 상태 메시지 갱신
     function setStatus(message, isError = false) {
@@ -842,7 +855,7 @@
           nmse.push({
             label: `Plain DNN (r = ${r.toFixed(3)})`,
             values: nmsePlain.map(value => 10 * Math.log10(Math.max(Number(value), 1e-300))),
-            color: style.color,
+            color: desaturateColor(style.color),
             dash: [14, 8],
             marker: style.marker
           });
@@ -860,7 +873,7 @@
           ber.push({
             label: `Plain DNN (r = ${r.toFixed(3)})`,
             values: berPlain.map(value => value > 0 && Number.isFinite(value) ? value : NaN),
-            color: style.color,
+            color: desaturateColor(style.color),
             dash: [14, 8],
             marker: style.marker
           });
@@ -915,7 +928,11 @@
       for (let value = axisMin; value <= axisMax; value += 1) {
         ticks.push(value);
       }
-      return { min: axisMin, max: axisMax, ticks };
+      const minorTicks = [];
+      for (let step = axisMin * 10; step <= axisMax * 10; step += 1) {
+        minorTicks.push(step / 10);
+      }
+      return { min: axisMin, max: axisMax, ticks, minorTicks };
     }
 
     // BER 로그 축 자동 범위 계산
@@ -1110,18 +1127,21 @@
           }
         }
       } else {
-        for (const value of yScale.ticks) {
+        for (const value of yScale.minorTicks) {
           const y = mapY(value);
-          ctx.strokeStyle = '#b6bec6';
-          ctx.lineWidth = 1.3;
+          const major = Number.isInteger(value);
+          ctx.strokeStyle = major ? '#b6bec6' : '#e3e6e9';
+          ctx.lineWidth = major ? 1.3 : 0.8;
           ctx.beginPath();
           ctx.moveTo(plot.left, y);
           ctx.lineTo(plot.right, y);
           ctx.stroke();
-          ctx.fillStyle = '#111111';
-          ctx.textAlign = 'right';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(formatTick(value), plot.left - fontSize * 0.35, y);
+          if (major) {
+            ctx.fillStyle = '#111111';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(formatTick(value), plot.left - fontSize * 0.35, y);
+          }
         }
       }
 
@@ -1210,8 +1230,8 @@
       state.hitPoints = [];
       hideTooltip();
       if (!state.arrays) {
-        const width = Number(ui.widthInput.value) || 2600;
-        const height = Number(ui.heightInput.value) || 1500;
+        const width = Math.max(300, Math.min(5000, Number(ui.widthInput.value) || 2600));
+        const height = Math.max(300, Math.min(3000, Number(ui.heightInput.value) || 1500));
         ui.canvas.width = width;
         ui.canvas.height = height;
         ctx.fillStyle = '#ffffff';
@@ -1220,8 +1240,8 @@
       }
 
       state.graph = buildGraphData(state.arrays);
-      const width = Math.max(1000, Math.min(5000, Number(ui.widthInput.value) || 2600));
-      const height = Math.max(500, Math.min(3000, Number(ui.heightInput.value) || 1500));
+      const width = Math.max(300, Math.min(5000, Number(ui.widthInput.value) || 2600));
+      const height = Math.max(300, Math.min(3000, Number(ui.heightInput.value) || 1500));
       const fontSize = Math.max(16, Math.min(48, Number(ui.fontInput.value) || 28));
       ui.canvas.width = width;
       ui.canvas.height = height;
